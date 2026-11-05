@@ -18,7 +18,8 @@ Terraform and OpenTofu `>= 1.11`, `tflint`, `terraform-docs`, `trivy`, `checkov`
 |---|---|
 | `make fmt` / `make fmt-check` | `terraform fmt -recursive` / fail on unformatted files |
 | `make validate` | `init -backend=false` + `validate` for the root, `modules/*` and `examples/*` |
-| `make tofu-validate` | the same with OpenTofu |
+| `make tofu-validate` | the same with OpenTofu, in a throwaway copy (`.tofu/work`) so Terraform's `.terraform/` and lock files are never touched |
+| `make lock` | refresh `examples/*/.terraform.lock.hcl` with hashes for linux, macOS and Windows (the example lock files are committed; `make validate` runs them with `-lockfile=readonly`) |
 | `make lint` | `tflint --recursive` (terraform + aws rulesets) |
 | `make test` / `make tofu-test` | native `tests/*.tftest.hcl` (plan-only, mocked provider, no AWS credentials) |
 | `make docs` / `make docs-check` | regenerate / verify the terraform-docs sections of every README |

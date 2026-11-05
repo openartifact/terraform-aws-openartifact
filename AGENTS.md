@@ -53,7 +53,7 @@ Where a skill disagrees with the conventions above or the repository's existing 
 
 - **Never run `apply`**, or `plan` against real AWS. Validation and tests are offline.
 - Tests mock the AWS provider (`mock_provider "aws" {}`); give `aws_iam_policy_document` a valid JSON through `override_data`/`mock_data`. The `random` provider is local and needs no mock. Tests must pass on both `terraform test` and `tofu test`.
-- `.terraform/` and `.terraform.lock.hcl` are not committed.
+- `.terraform/` and the root/module `.terraform.lock.hcl` are not committed; the lock files under `examples/` are (multi-platform hashes; refresh with `make lock`).
 - Keep `OPENARTIFACT_SECRET_KEY` stable: changing it makes stored credentials unreadable. `secret_version` bumps must never touch it implicitly.
 - ECS: the image is shell-less and has no file mounts, so only `OPENARTIFACT_BOOTSTRAP_ADMIN_PASSWORD` (env from a secret) is supported; the admin token is file-only and works on EKS only.
 - RDS rotates its managed master password; tasks read env only at start, hence the redeploy-on-rotation mechanism in `modules/ecs-service`.
