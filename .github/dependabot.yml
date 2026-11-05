@@ -1,0 +1,35 @@
+# SPDX-FileCopyrightText: The OpenArtifact Authors
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+# Actions are pinned by commit SHA (+ `# vX.Y.Z` comment). Not tracked by Dependabot: the
+# tool versions in the workflows (TFLINT_VERSION, CHECKOV_VERSION, TERRAFORM_DOCS_VERSION,
+# ACTIONLINT_VERSION, the terraform/tofu matrix) and the pre-commit `rev:` pins.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      github-actions:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  # The root module, every submodule and every example is its own Terraform root with its own
+  # provider constraints, so each directory is updated individually.
+  - package-ecosystem: terraform
+    directories:
+      - /
+      - /modules/*
+      - /examples/*
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      terraform-providers:
+        patterns: ["*"]
+        update-types: [minor, patch]
