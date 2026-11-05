@@ -91,7 +91,6 @@ resource "aws_iam_role_policy" "task_storage" {
 }
 
 # The ssmmessages actions do not support resource-level permissions.
-#trivy:ignore:AVD-AWS-0057 ssmmessages channel actions only support Resource "*"; the policy exists only when enable_execute_command is true.
 resource "aws_iam_role_policy" "task_execute_command" {
   #checkov:skip=CKV_AWS_355: ssmmessages channel actions only support Resource "*"; only created when enable_execute_command is true.
   #checkov:skip=CKV_AWS_290: ssmmessages channel actions do not support resource-level permissions.

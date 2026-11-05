@@ -189,8 +189,9 @@ locals {
 }
 
 #trivy:ignore:AVD-AWS-0017 encryption with a customer managed key is opt-in through flow_logs_kms_key_arn because the key policy must grant the CloudWatch Logs service principal access
-#checkov:skip=CKV_AWS_158: encryption with a customer managed key is opt-in through flow_logs_kms_key_arn because the key policy must grant the CloudWatch Logs service principal access
 resource "aws_cloudwatch_log_group" "flow_logs" {
+  #checkov:skip=CKV_AWS_338: retention is configurable through flow_logs_retention_days; the default of 90 days is a cost/audit trade-off
+  #checkov:skip=CKV_AWS_158: encryption with a customer managed key is opt-in through flow_logs_kms_key_arn because the key policy must grant the CloudWatch Logs service principal access
   count = local.flow_logs_count
 
   name              = "/aws/vpc/${var.name}/flow-logs"

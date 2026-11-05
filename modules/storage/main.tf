@@ -27,6 +27,9 @@ locals {
 # principals; no service principals are needed because S3 calls KMS on behalf
 # of the requesting IAM principal.
 data "aws_iam_policy_document" "kms_key" {
+  #checkov:skip=CKV_AWS_109: a KMS key policy must grant the account root kms:*; it only delegates to IAM and the key policy resource "*" refers to this key itself
+  #checkov:skip=CKV_AWS_111: a KMS key policy must grant the account root kms:*; it only delegates to IAM and the key policy resource "*" refers to this key itself
+  #checkov:skip=CKV_AWS_356: in a key policy the resource "*" means this key itself
   count = local.cmk_enabled ? 1 : 0
 
   statement {
@@ -65,10 +68,10 @@ resource "aws_kms_alias" "blobs" {
 # ------------------------------------------------------------------------------
 
 #trivy:ignore:AVD-AWS-0089 access logging is opt-in through var.access_logging because it needs a pre-existing log bucket
-#checkov:skip=CKV_AWS_18: access logging is opt-in through var.access_logging because it needs a pre-existing log bucket
-#checkov:skip=CKV_AWS_144: cross-region replication is out of scope for this module; use S3 replication in the consuming stack
-#checkov:skip=CKV2_AWS_62: event notifications are not used by OpenArtifact
 resource "aws_s3_bucket" "this" {
+  #checkov:skip=CKV_AWS_18: access logging is opt-in through var.access_logging because it needs a pre-existing log bucket
+  #checkov:skip=CKV_AWS_144: cross-region replication is out of scope for this module; configure S3 replication in the consuming stack
+  #checkov:skip=CKV2_AWS_62: event notifications are not used by OpenArtifact
   bucket        = local.bucket_name
   force_destroy = var.force_destroy
 
@@ -114,6 +117,7 @@ resource "aws_s3_bucket_versioning" "this" {
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "this" {
+  #checkov:skip=CKV_AWS_300: the unconditional rule "abort-incomplete-multipart-uploads" sets the abort period; the check cannot see it next to dynamic rule blocks
   bucket = aws_s3_bucket.this.id
 
   rule {

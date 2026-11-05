@@ -66,8 +66,8 @@ locals {
   }
 }
 
-#checkov:skip=CKV2_AWS_57: the values are generated once and are deliberately not auto-rotated; see the README for the rotation procedure and its consequences
 resource "aws_secretsmanager_secret" "generated" {
+  #checkov:skip=CKV2_AWS_57: the values are generated once and are deliberately not auto-rotated; see the README for the rotation procedure and its consequences
   for_each = local.generated
 
   name                    = "${var.name}/${each.value.path}"

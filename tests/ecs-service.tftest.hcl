@@ -24,6 +24,26 @@ mock_provider "aws" {
     }
   }
 
+  # OpenTofu fills computed attributes with random strings at plan time and validates ARN
+  # arguments, so the ARNs consumed by other resources need valid mock defaults.
+  mock_resource "aws_iam_role" {
+    defaults = {
+      arn = "arn:aws:iam::123456789012:role/mock"
+    }
+  }
+
+  mock_resource "aws_cloudwatch_log_group" {
+    defaults = {
+      arn = "arn:aws:logs:eu-west-1:123456789012:log-group:/mock"
+    }
+  }
+
+  mock_resource "aws_sfn_state_machine" {
+    defaults = {
+      arn = "arn:aws:states:eu-west-1:123456789012:stateMachine:mock"
+    }
+  }
+
   override_data {
     target = data.aws_region.current
     values = {
@@ -142,7 +162,7 @@ run "environment_and_secrets" {
     condition = length(setintersection(
       toset([for e in jsondecode(output.container_definitions)[0].environment : e.name]),
       toset(["STORAGE_ACCESS_KEY", "STORAGE_SECRET_KEY"])
-    )) == 0 && length(setintersection(
+      )) == 0 && length(setintersection(
       toset([for s in jsondecode(output.container_definitions)[0].secrets : s.name]),
       toset(["STORAGE_ACCESS_KEY", "STORAGE_SECRET_KEY"])
     )) == 0

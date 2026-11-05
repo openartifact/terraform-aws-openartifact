@@ -11,7 +11,7 @@ data "aws_region" "current" {}
 locals {
   port                   = 5432
   create_kms_key         = var.kms_key_arn == null
-  kms_key_arn            = local.create_kms_key ? aws_kms_key.database[0].arn : var.kms_key_arn
+  kms_key_arn            = local.create_kms_key ? one(aws_kms_key.database[*].arn) : var.kms_key_arn
   create_monitoring      = var.monitoring_interval > 0
   parameter_group_family = "postgres${var.engine_version}"
 
@@ -218,6 +218,10 @@ resource "random_id" "final_snapshot" {
 }
 
 resource "aws_db_instance" "this" {
+  #checkov:skip=CKV_AWS_118: Enhanced Monitoring is opt-in through monitoring_interval (Performance Insights and CloudWatch log exports are on by default); the role is created when enabled.
+  #checkov:skip=CKV_AWS_161: OpenArtifact authenticates with the RDS-managed, Secrets Manager rotated master password; IAM database authentication is deliberately off.
+  #checkov:skip=CKV2_AWS_69: TLS is enforced server-side by rds.force_ssl = 1 in the parameter group, which cannot be overridden (checkov does not follow the parameter group).
+
   identifier = var.name
 
   engine = "postgres"

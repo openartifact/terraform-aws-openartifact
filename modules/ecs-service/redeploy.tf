@@ -83,6 +83,8 @@ resource "aws_cloudwatch_event_target" "redeploy" {
 }
 
 resource "aws_cloudwatch_log_group" "redeploy" {
+  #checkov:skip=CKV_AWS_338: Retention is configurable (log_retention_days, default 90); one year is a deployment policy decision.
+  #checkov:skip=CKV_AWS_158: Customer-managed key is optional (log_kms_key_arn); its key policy must allow logs.<region>.amazonaws.com.
   count = local.redeploy_enabled ? 1 : 0
 
   # The /aws/vendedlogs/states/ prefix keeps the log delivery resource policy small.
@@ -94,6 +96,7 @@ resource "aws_cloudwatch_log_group" "redeploy" {
 }
 
 resource "aws_sfn_state_machine" "redeploy" {
+  #checkov:skip=CKV_AWS_284: X-Ray tracing is intentionally off; the state machine is a single SDK call, covered by its error logs.
   count = local.redeploy_enabled ? 1 : 0
 
   name       = local.redeploy_name
@@ -103,7 +106,7 @@ resource "aws_sfn_state_machine" "redeploy" {
 
   logging_configuration {
     log_destination        = "${aws_cloudwatch_log_group.redeploy[0].arn}:*"
-    include_execution_data = false
+    include_execution_data = true
     level                  = "ERROR"
   }
 
@@ -187,7 +190,6 @@ resource "aws_iam_role" "redeploy_sfn" {
 
 # The CloudWatch Logs delivery actions do not support resource-level permissions (AWS Step Functions
 # Developer Guide, "IAM policies for logging to CloudWatch Logs").
-#trivy:ignore:AVD-AWS-0057 CloudWatch Logs delivery actions required by Step Functions logging only support Resource "*"; ecs:UpdateService is scoped to the service ARN.
 resource "aws_iam_role_policy" "redeploy_sfn" {
   #checkov:skip=CKV_AWS_355: CloudWatch Logs delivery actions only support Resource "*"; ecs:UpdateService is scoped to the service ARN.
   #checkov:skip=CKV_AWS_290: CloudWatch Logs delivery actions do not support resource-level permissions.
