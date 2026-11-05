@@ -10,12 +10,14 @@ SHELL := /bin/bash
 TERRAFORM ?= terraform
 TOFU ?= tofu
 TF_DOCS ?= terraform-docs
+TOFU_WORK ?= $(CURDIR)/.tofu/work
+LOCK_PLATFORMS := -platform=linux_amd64 -platform=linux_arm64 -platform=darwin_arm64 -platform=darwin_amd64 -platform=windows_amd64
 
 # Every directory that is a Terraform root, module or example.
 DIRS := . $(wildcard modules/*/) $(wildcard examples/*/)
 export TF_PLUGIN_CACHE_DIR ?= $(HOME)/.terraform.d/plugin-cache
 
-.PHONY: all fmt fmt-check lint validate tofu-validate test tofu-test docs docs-check security trivy checkov reuse actionlint clean
+.PHONY: all fmt fmt-check lint validate tofu-sync tofu-validate test tofu-test lock docs docs-check security trivy checkov reuse actionlint clean
 
 all: fmt-check validate lint test docs-check security reuse actionlint ## everything CI runs (terraform only)
 
@@ -25,34 +27,54 @@ fmt: ## rewrite formatting
 fmt-check: ## fail on unformatted files
 	$(TERRAFORM) fmt -check -recursive -diff
 
-define validate_all
+# Terraform runs in the tree. Committed lock files (examples/) are never rewritten:
+# `-lockfile=readonly` makes init fail on drift instead; refresh them with `make lock`.
+validate: ## init -backend=false + validate for root, modules/*, examples/*
 	@mkdir -p "$(TF_PLUGIN_CACHE_DIR)"
 	@for d in $(DIRS); do \
 	  ls "$$d"/*.tf >/dev/null 2>&1 || continue; \
-	  echo "==> $(1) validate $$d"; \
-	  ( cd "$$d" && $(1) init -backend=false -input=false -no-color >/dev/null && $(1) validate -no-color ); \
+	  lockflag=""; \
+	  case "$$d" in examples/*) [ -f "$$d/.terraform.lock.hcl" ] && lockflag="-lockfile=readonly" ;; esac; \
+	  echo "==> terraform validate $$d"; \
+	  ( cd "$$d" && $(TERRAFORM) init -backend=false -input=false -no-color $$lockflag >/dev/null && $(TERRAFORM) validate -no-color ); \
 	done
-endef
 
-validate: ## init -backend=false + validate for root, modules/*, examples/*
-	$(call validate_all,$(TERRAFORM))
+# OpenTofu must not share .terraform/ or lock files with Terraform (tofu rewrites the lock
+# file with its own registry addresses), so it runs in a throwaway copy of the tree.
+tofu-sync:
+	@mkdir -p "$(TOFU_WORK)"
+	@rsync -a --delete --delete-excluded \
+	  --exclude=/.git --exclude=/.tofu --exclude=.terraform --exclude=.terraform.lock.hcl \
+	  ./ "$(TOFU_WORK)/"
 
-tofu-validate: ## same with OpenTofu
-	$(call validate_all,$(TOFU))
+tofu-validate: tofu-sync ## same with OpenTofu (in .tofu/work, the tree is not touched)
+	@mkdir -p "$(TF_PLUGIN_CACHE_DIR)"
+	@for d in $(DIRS); do \
+	  ls "$(TOFU_WORK)/$$d"/*.tf >/dev/null 2>&1 || continue; \
+	  echo "==> tofu validate $$d"; \
+	  ( cd "$(TOFU_WORK)/$$d" && $(TOFU) init -backend=false -input=false -no-color >/dev/null && $(TOFU) validate -no-color ); \
+	done
 
 lint: ## tflint (terraform + aws rulesets), recursive
 	tflint --init --config="$(CURDIR)/.tflint.hcl"
 	tflint --recursive --config="$(CURDIR)/.tflint.hcl"
 
-test: ## native plan-only tests (tests/*.tftest.hcl)
+test: ## native plan-only tests (tests/*.tftest.hcl, run against the root module)
 	@mkdir -p "$(TF_PLUGIN_CACHE_DIR)"
 	$(TERRAFORM) init -backend=false -input=false >/dev/null
 	$(TERRAFORM) test
 
-tofu-test: ## same with OpenTofu
+tofu-test: tofu-sync ## same with OpenTofu (in .tofu/work)
 	@mkdir -p "$(TF_PLUGIN_CACHE_DIR)"
-	$(TOFU) init -backend=false -input=false >/dev/null
-	$(TOFU) test
+	cd "$(TOFU_WORK)" && $(TOFU) init -backend=false -input=false >/dev/null && $(TOFU) test
+
+lock: ## refresh examples/*/.terraform.lock.hcl with hashes for all supported platforms
+	@mkdir -p "$(TF_PLUGIN_CACHE_DIR)"
+	@for d in $(wildcard examples/*/); do \
+	  echo "==> terraform providers lock $$d"; \
+	  ( cd "$$d" && $(TERRAFORM) init -backend=false -input=false -no-color >/dev/null && \
+	    $(TERRAFORM) providers lock $(LOCK_PLATFORMS) ); \
+	done
 
 docs: ## regenerate the terraform-docs sections (root, modules/*, examples/*)
 	@for d in $(DIRS); do \
@@ -81,4 +103,5 @@ actionlint: ## lint GitHub workflows
 	actionlint .github/workflows/*.yml
 
 clean: ## remove local working data
+	rm -rf .tofu
 	find . -type d -name .terraform -prune -exec rm -rf {} +

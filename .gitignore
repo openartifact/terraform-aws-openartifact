@@ -2,14 +2,16 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-# Terraform / OpenTofu working data (the .terraform.lock.hcl files ARE committed)
+# Terraform / OpenTofu working data
 .terraform/
+.tofu/
 *.tfstate
 *.tfstate.*
 .terraform.tfstate.lock.info
-# Provider lock files are not committed (modules are libraries; terraform and tofu write
-# different registry addresses into them). Run `terraform init -upgrade` to refresh locally.
-.terraform.lock.hcl
+# Provider lock files are committed for examples/ only: the root and the submodules are
+# libraries, so their consumers resolve providers.
+/.terraform.lock.hcl
+/modules/**/.terraform.lock.hcl
 crash.log
 crash.*.log
 *_override.tf

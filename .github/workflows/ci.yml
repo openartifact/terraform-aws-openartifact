@@ -98,8 +98,16 @@ jobs:
           for d in . modules/* examples/*; do
             [ -d "$d" ] || continue
             ls "$d"/*.tf >/dev/null 2>&1 || continue
+            # Committed lock files (examples/) must not change: Terraform fails on drift
+            # with -lockfile=readonly. OpenTofu writes its own registry addresses into the
+            # lock file, so it runs on the throwaway runner copy without the flag.
+            lockflag=""
+            if [ "$TOOL" = terraform ] && [ -f "$d/.terraform.lock.hcl" ] && [[ "$d" == examples/* ]]; then
+              lockflag="-lockfile=readonly"
+            fi
             echo "::group::$TOOL validate $d"
-            (cd "$d" && "$TOOL" init -backend=false -input=false >/dev/null && "$TOOL" validate)
+            # shellcheck disable=SC2086
+            (cd "$d" && "$TOOL" init -backend=false -input=false $lockflag >/dev/null && "$TOOL" validate)
             echo "::endgroup::"
           done
 

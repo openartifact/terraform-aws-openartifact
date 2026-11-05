@@ -12,6 +12,7 @@ framework:
   - terraform
 skip-path:
   - ".agents"
+  - ".tofu"
   - ".*/\\.terraform/.*"
 soft-fail: false
 compact: true

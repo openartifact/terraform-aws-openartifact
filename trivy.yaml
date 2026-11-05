@@ -10,6 +10,7 @@ scan:
     - misconfig
   skip-dirs:
     - "**/.terraform"
+    - ".tofu"
     - ".agents"
 severity:
   - HIGH
