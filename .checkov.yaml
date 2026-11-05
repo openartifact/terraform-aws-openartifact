@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: The OpenArtifact Authors
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+# Run with: checkov --config-file .checkov.yaml
+# Suppress a finding only inline, next to the resource, with a justification:
+#   #checkov:skip=CKV_AWS_xxx: reason
+# Do not add a `skip-check:` list here unless every entry carries its own comment.
+directory:
+  - .
+framework:
+  - terraform
+skip-path:
+  - ".agents"
+  - ".*/\\.terraform/.*"
+soft-fail: false
+compact: true
+quiet: true
+download-external-modules: false

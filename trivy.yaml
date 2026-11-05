@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: The OpenArtifact Authors
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+# Trivy configuration for the misconfiguration scan: `trivy config --config trivy.yaml .`
+# Findings are suppressed only inline (`#trivy:ignore:AVD-AWS-xxxx` + justification),
+# never with a blanket ignore file.
+scan:
+  scanners:
+    - misconfig
+  skip-dirs:
+    - "**/.terraform"
+    - ".agents"
+severity:
+  - HIGH
+  - CRITICAL
+exit-code: 1

@@ -1,0 +1,44 @@
+# SPDX-FileCopyrightText: The OpenArtifact Authors
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+# Terraform / OpenTofu working data (the .terraform.lock.hcl files ARE committed)
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.tfstate.lock.info
+# Provider lock files are not committed (modules are libraries; terraform and tofu write
+# different registry addresses into them). Run `terraform init -upgrade` to refresh locally.
+.terraform.lock.hcl
+crash.log
+crash.*.log
+*_override.tf
+*_override.tf.json
+override.tf
+override.tf.json
+.terraformrc
+terraform.rc
+tfplan
+*.tfplan
+*.tfplan.json
+
+# Variable files may hold secrets; only examples are committed
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+
+# terraform-docs temporary files
+.terraform-docs.tmp*
+README.md.tmp
+
+# Scanner output
+*.sarif
+.checkov/
+checkov-results/
+.trivycache/
+
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
