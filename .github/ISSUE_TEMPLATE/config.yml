@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: The OpenArtifact Authors
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/openartifact/openartifact/security/policy
+    about: Report privately, never in a public issue.
+  - name: OpenArtifact application issue
+    url: https://github.com/openartifact/openartifact/issues
+    about: Problems with OpenArtifact itself rather than this Terraform module.

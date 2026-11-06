@@ -1,0 +1,45 @@
+# SPDX-FileCopyrightText: The OpenArtifact Authors
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+# Run from any module/example directory: `terraform-docs -c <repo>/.terraform-docs.yml .`
+# (see `make docs`). Output is injected between the BEGIN_TF_DOCS / END_TF_DOCS markers.
+formatter: "markdown table"
+
+output:
+  file: README.md
+  mode: inject
+  template: |-
+    <!-- BEGIN_TF_DOCS -->
+    {{ .Content }}
+    <!-- END_TF_DOCS -->
+
+content: ""
+
+sections:
+  hide-all: true
+  show:
+    - requirements
+    - providers
+    - inputs
+    - outputs
+    - resources
+    - modules
+
+sort:
+  enabled: true
+  by: name
+
+settings:
+  anchor: true
+  default: true
+  description: true
+  escape: true
+  hide-empty: true
+  html: true
+  indent: 2
+  lockfile: false
+  read-comments: true
+  required: true
+  sensitive: true
+  type: true

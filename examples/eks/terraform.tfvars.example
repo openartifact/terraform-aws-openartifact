@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: The OpenArtifact Authors
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+# Copy to terraform.tfvars and adjust. There is deliberately no default for the values that
+# identify your environment or decide who may reach the repository.
+
+region       = "eu-west-1"
+cluster_name = "prod-eks"
+
+# Private subnets of the cluster's VPC, in at least two Availability Zones.
+database_subnet_ids = ["subnet-0aaaaaaaaaaaaaaa1", "subnet-0bbbbbbbbbbbbbbb2"]
+
+# Who may reach the load balancer (your office, VPN or CI egress ranges).
+allowed_ingress_cidrs = ["203.0.113.0/24"]
+
+ingress_host = "artifacts.example.com"
+
+# ACM certificate in the same region, covering ingress_host.
+certificate_arn = "arn:aws:acm:eu-west-1:111122223333:certificate/00000000-0000-0000-0000-000000000000"
+
+# ClusterSecretStore of the External Secrets Operator (AWS Secrets Manager provider).
+secret_store_name = "aws-secretsmanager"
+
+tags = {
+  Environment = "production"
+}

@@ -1,0 +1,141 @@
+# SPDX-FileCopyrightText: The OpenArtifact Authors
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  TFLINT_VERSION: v0.65.0
+
+jobs:
+  fmt:
+    name: fmt
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_wrapper: false
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive -diff
+
+      - name: Every module and example requires Terraform/OpenTofu >= 1.11
+        run: |
+          bad=0
+          for f in versions.tf modules/*/versions.tf examples/*/versions.tf; do
+            [ -e "$f" ] || continue
+            if ! grep -qE '^\s*required_version\s*=\s*">= 1\.11"\s*$' "$f"; then
+              echo "::error file=$f::required_version must be \">= 1.11\""
+              bad=1
+            fi
+          done
+          exit "$bad"
+
+  # Oldest supported (1.11.x) and latest of each CLI. Plan-only tests use a mocked
+  # provider, so no AWS credentials are needed.
+  validate-test:
+    name: ${{ matrix.tool }} ${{ matrix.version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { tool: terraform, version: "1.11.4" }
+          - { tool: terraform, version: "latest" }
+          - { tool: opentofu, version: "1.11.14" }
+          - { tool: opentofu, version: "latest" }
+    env:
+      TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.plugin-cache
+      TF_IN_AUTOMATION: "true"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        if: matrix.tool == 'terraform'
+        with:
+          terraform_version: ${{ matrix.version }}
+          terraform_wrapper: false
+
+      - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
+        if: matrix.tool == 'opentofu'
+        with:
+          tofu_version: ${{ matrix.version }}
+          tofu_wrapper: false
+
+      - name: Cache providers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .plugin-cache
+          key: providers-${{ matrix.tool }}-${{ hashFiles('**/versions.tf') }}
+          restore-keys: providers-${{ matrix.tool }}-
+
+      - name: init + validate (root, modules/*, examples/*)
+        env:
+          TOOL: ${{ matrix.tool == 'opentofu' && 'tofu' || 'terraform' }}
+        run: |
+          mkdir -p "$TF_PLUGIN_CACHE_DIR"
+          for d in . modules/* examples/*; do
+            [ -d "$d" ] || continue
+            ls "$d"/*.tf >/dev/null 2>&1 || continue
+            # Committed lock files (examples/) must not change: Terraform fails on drift
+            # with -lockfile=readonly. OpenTofu writes its own registry addresses into the
+            # lock file, so it runs on the throwaway runner copy without the flag.
+            lockflag=""
+            if [ "$TOOL" = terraform ] && [ -f "$d/.terraform.lock.hcl" ] && [[ "$d" == examples/* ]]; then
+              lockflag="-lockfile=readonly"
+            fi
+            echo "::group::$TOOL validate $d"
+            # shellcheck disable=SC2086
+            (cd "$d" && "$TOOL" init -backend=false -input=false $lockflag >/dev/null && "$TOOL" validate)
+            echo "::endgroup::"
+          done
+
+      - name: test
+        env:
+          TOOL: ${{ matrix.tool == 'opentofu' && 'tofu' || 'terraform' }}
+        run: |
+          "$TOOL" init -backend=false -input=false >/dev/null
+          "$TOOL" test
+
+  tflint:
+    name: tflint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: terraform-linters/setup-tflint@6ffdbaa3be476b3431f7275c26966ef32ff60337 # v6.3.2
+        with:
+          tflint_version: ${{ env.TFLINT_VERSION }}
+
+      - name: tflint --init
+        env:
+          # Avoids the anonymous GitHub API rate limit when downloading the aws ruleset.
+          GITHUB_TOKEN: ${{ github.token }}
+        run: tflint --init --config="$GITHUB_WORKSPACE/.tflint.hcl"
+
+      - name: tflint --recursive
+        run: tflint --recursive --config="$GITHUB_WORKSPACE/.tflint.hcl" --format=compact

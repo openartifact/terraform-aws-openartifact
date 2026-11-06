@@ -1,0 +1,44 @@
+# SPDX-FileCopyrightText: The OpenArtifact Authors
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: Docs
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  TERRAFORM_DOCS_VERSION: v0.24.0
+  TERRAFORM_DOCS_SHA256: 9005daf969de0b50134493a2c00078b49f5f5b39d021cda7c89bf4d4f3d776d3 # linux-amd64 tarball
+
+jobs:
+  terraform-docs:
+    name: terraform-docs drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install terraform-docs
+        run: |
+          archive="terraform-docs-${TERRAFORM_DOCS_VERSION}-linux-amd64.tar.gz"
+          curl -fsSLO "https://github.com/terraform-docs/terraform-docs/releases/download/${TERRAFORM_DOCS_VERSION}/${archive}"
+          echo "${TERRAFORM_DOCS_SHA256}  ${archive}" | sha256sum -c -
+          tar -xzf "$archive" terraform-docs
+          sudo install -m 0755 terraform-docs /usr/local/bin/terraform-docs
+
+      # Fails when a README's BEGIN_TF_DOCS section differs from the code: run `make docs`.
+      - name: Check generated docs are up to date
+        run: make docs-check

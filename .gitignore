@@ -1,0 +1,46 @@
+# SPDX-FileCopyrightText: The OpenArtifact Authors
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+# Terraform / OpenTofu working data
+.terraform/
+.tofu/
+*.tfstate
+*.tfstate.*
+.terraform.tfstate.lock.info
+# Provider lock files are committed for examples/ only: the root and the submodules are
+# libraries, so their consumers resolve providers.
+/.terraform.lock.hcl
+/modules/**/.terraform.lock.hcl
+crash.log
+crash.*.log
+*_override.tf
+*_override.tf.json
+override.tf
+override.tf.json
+.terraformrc
+terraform.rc
+tfplan
+*.tfplan
+*.tfplan.json
+
+# Variable files may hold secrets; only examples are committed
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+
+# terraform-docs temporary files
+.terraform-docs.tmp*
+README.md.tmp
+
+# Scanner output
+*.sarif
+.checkov/
+checkov-results/
+.trivycache/
+
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
