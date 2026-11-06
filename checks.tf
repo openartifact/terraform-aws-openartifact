@@ -6,7 +6,7 @@
 
 check "base_url_is_https" {
   assert {
-    condition     = var.base_url == null || startswith(var.base_url, "https://")
+    condition     = startswith(var.base_url == null ? "https://" : var.base_url, "https://")
     error_message = "base_url should use https://: the ALB only serves HTTPS (HTTP is redirected), so an http:// base URL makes generated links and SSO redirects point at the redirect."
   }
 }

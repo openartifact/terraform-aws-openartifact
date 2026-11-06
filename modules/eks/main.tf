@@ -97,7 +97,7 @@ check "pod_identity_agent_addon" {
 
 check "base_url_https" {
   assert {
-    condition     = var.base_url == null || startswith(coalesce(var.base_url, ""), "https://")
+    condition     = startswith(var.base_url == null ? "https://" : var.base_url, "https://")
     error_message = "base_url is not an https:// URL. Session cookies are only marked Secure over HTTPS and SSO callbacks need HTTPS."
   }
 }

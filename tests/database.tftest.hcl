@@ -46,14 +46,14 @@ mock_provider "aws" {
   }
 
   override_data {
-    target = data.aws_iam_policy_document.kms[0]
+    target = data.aws_iam_policy_document.kms
     values = {
       json = "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"EnableIamPolicies\",\"Effect\":\"Allow\",\"Principal\":{\"AWS\":\"arn:aws:iam::123456789012:root\"},\"Action\":\"kms:*\",\"Resource\":\"*\"}]}"
     }
   }
 
   override_data {
-    target = data.aws_iam_policy_document.monitoring_assume_role[0]
+    target = data.aws_iam_policy_document.monitoring_assume_role
     values = {
       json = "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"monitoring.rds.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}"
     }

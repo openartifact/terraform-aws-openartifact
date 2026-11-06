@@ -7,6 +7,7 @@ data "aws_region" "current" {}
 data "aws_partition" "current" {}
 
 data "aws_availability_zones" "available" {
+  #checkov:skip=CKV_AWS_394: Only the first az_count zones (sorted by name) are used, so a zone AWS adds later cannot grow the VPC; callers that need fixed zones can use their own VPC with the root module.
   state = "available"
 
   # Skip Local Zones and Wavelength Zones: they lack NAT gateways and many services.
