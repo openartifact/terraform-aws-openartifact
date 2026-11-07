@@ -62,11 +62,13 @@ lint: ## tflint (terraform + aws rulesets), recursive
 test: ## native plan-only tests (tests/*.tftest.hcl, run against the root module)
 	@mkdir -p "$(TF_PLUGIN_CACHE_DIR)"
 	$(TERRAFORM) init -backend=false -input=false >/dev/null
-	$(TERRAFORM) test
+	@# One invocation per file: plan-only runs keep a provider process alive until the CLI exits.
+	@status=0; for f in tests/*.tftest.hcl; do $(TERRAFORM) test -filter="$$f" || status=1; done; exit $$status
 
 tofu-test: tofu-sync ## same with OpenTofu (in .tofu/work)
 	@mkdir -p "$(TF_PLUGIN_CACHE_DIR)"
-	cd "$(TOFU_WORK)" && $(TOFU) init -backend=false -input=false >/dev/null && $(TOFU) test
+	cd "$(TOFU_WORK)" && $(TOFU) init -backend=false -input=false >/dev/null
+	@cd "$(TOFU_WORK)" && status=0; for f in tests/*.tftest.hcl; do $(TOFU) test -filter="$$f" || status=1; done; exit $$status
 
 lock: ## refresh examples/*/.terraform.lock.hcl with hashes for all supported platforms
 	@mkdir -p "$(TF_PLUGIN_CACHE_DIR)"

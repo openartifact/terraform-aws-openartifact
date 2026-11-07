@@ -116,7 +116,16 @@ jobs:
           TOOL: ${{ matrix.tool == 'opentofu' && 'tofu' || 'terraform' }}
         run: |
           "$TOOL" init -backend=false -input=false >/dev/null
-          "$TOOL" test
+          # One invocation per test file: a plan-only run keeps its mocked aws provider process
+          # (several hundred MiB) alive until the CLI exits, so a single `test` over the whole suite
+          # exhausts the runner's memory on the oldest supported releases.
+          status=0
+          for f in tests/*.tftest.hcl; do
+            echo "::group::$TOOL test $f"
+            "$TOOL" test -filter="$f" || status=1
+            echo "::endgroup::"
+          done
+          exit "$status"
 
   tflint:
     name: tflint
