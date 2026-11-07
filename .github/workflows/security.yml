@@ -92,6 +92,15 @@ jobs:
       - name: checkov (SARIF)
         run: checkov --config-file .checkov.yaml --output sarif --output-file-path checkov-results --soft-fail
 
+      # Checkov writes inline #checkov:skip results as suppressed warnings, and code scanning
+      # opens an alert for each of them. The skips are justified in the source; upload only
+      # real findings.
+      - name: Drop suppressed results from SARIF
+        run: |
+          jq '.runs |= map(.results |= map(select(.suppressions == null)))' \
+            checkov-results/results_sarif.sarif > checkov-results/filtered.sarif
+          mv checkov-results/filtered.sarif checkov-results/results_sarif.sarif
+
       - name: Upload SARIF
         if: ${{ !cancelled() && env.CAN_UPLOAD_SARIF == 'true' }}
         uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
