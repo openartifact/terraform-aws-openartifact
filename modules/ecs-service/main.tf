@@ -11,6 +11,10 @@ data "aws_region" "current" {}
 locals {
   container_name = "openartifact"
 
+  # An empty strategy means Fargate (launch_type); otherwise the tasks run on EC2 container
+  # instances behind the given capacity providers.
+  fargate = length(var.capacity_provider_strategy) == 0
+
   # The image entrypoint (docker/Dockerfile: COPY ... /app/openartifact, CMD ["/app/openartifact"])
   # and the image's own HEALTHCHECK use the same absolute path; the image is shell-less, so the
   # health check must be the exec form (CMD), never CMD-SHELL.
@@ -55,14 +59,25 @@ locals {
         }
       ]
 
-      # /tmp is the only writable path (task ephemeral storage); see the README.
-      mountPoints = [
-        {
-          sourceVolume  = "tmp"
-          containerPath = "/tmp"
-          readOnly      = false
-        }
-      ]
+      # /tmp (task ephemeral storage, or a task-scoped Docker volume on EC2) is the only writable
+      # path of the root filesystem, plus the EFS volumes when the caller supplies any; see the
+      # README.
+      mountPoints = concat(
+        [
+          {
+            sourceVolume  = "tmp"
+            containerPath = "/tmp"
+            readOnly      = false
+          }
+        ],
+        [
+          for volume in var.efs_volumes : {
+            sourceVolume  = volume.name
+            containerPath = volume.container_path
+            readOnly      = false
+          }
+        ],
+      )
 
       healthCheck = {
         command     = ["CMD", local.binary_path, "-healthcheck"]
@@ -89,7 +104,7 @@ locals {
 
 resource "aws_ecs_task_definition" "this" {
   family                   = var.name
-  requires_compatibilities = ["FARGATE"]
+  requires_compatibilities = local.fargate ? ["FARGATE"] : ["EC2"]
   network_mode             = "awsvpc"
   cpu                      = tostring(var.cpu)
   memory                   = tostring(var.memory)
@@ -103,12 +118,48 @@ resource "aws_ecs_task_definition" "this" {
     cpu_architecture        = var.cpu_architecture
   }
 
-  ephemeral_storage {
-    size_in_gib = var.ephemeral_storage_gib
+  # Fargate only: on EC2 the scratch space is the instance disk (the tmp Docker volume below).
+  dynamic "ephemeral_storage" {
+    for_each = local.fargate ? [var.ephemeral_storage_gib] : []
+
+    content {
+      size_in_gib = ephemeral_storage.value
+    }
   }
 
   volume {
     name = "tmp"
+
+    # Task-scoped local Docker volume: created empty with the permissions of the image's /tmp when
+    # the task starts and deleted when it stops, like Fargate ephemeral storage.
+    dynamic "docker_volume_configuration" {
+      for_each = local.fargate ? [] : [1]
+
+      content {
+        scope  = "task"
+        driver = "local"
+      }
+    }
+  }
+
+  # Encrypted in transit and authorized with the task role; the access point fixes the POSIX
+  # identity and the root directory.
+  dynamic "volume" {
+    for_each = var.efs_volumes
+
+    content {
+      name = volume.value.name
+
+      efs_volume_configuration {
+        file_system_id     = volume.value.file_system_id
+        transit_encryption = "ENABLED"
+
+        authorization_config {
+          access_point_id = volume.value.access_point_id
+          iam             = "ENABLED"
+        }
+      }
+    }
   }
 
   tags = merge(var.tags, { Name = var.name })
@@ -116,6 +167,7 @@ resource "aws_ecs_task_definition" "this" {
   depends_on = [
     aws_iam_role_policy.execution,
     aws_iam_role_policy.task_storage,
+    aws_iam_role_policy.task_efs,
   ]
 }
 
@@ -124,8 +176,8 @@ resource "aws_ecs_service" "this" {
   cluster                            = var.cluster_arn
   task_definition                    = aws_ecs_task_definition.this.arn
   desired_count                      = var.desired_count
-  launch_type                        = "FARGATE"
-  platform_version                   = "LATEST"
+  launch_type                        = local.fargate ? "FARGATE" : null
+  platform_version                   = local.fargate ? "LATEST" : null
   enable_execute_command             = var.enable_execute_command
   enable_ecs_managed_tags            = true
   propagate_tags                     = "SERVICE"
@@ -140,9 +192,20 @@ resource "aws_ecs_service" "this" {
   }
 
   network_configuration {
-    subnets          = var.subnet_ids
-    security_groups  = [aws_security_group.this.id]
-    assign_public_ip = var.assign_public_ip
+    subnets         = var.subnet_ids
+    security_groups = [aws_security_group.this.id]
+    # Tasks on EC2 instances cannot get a public address.
+    assign_public_ip = local.fargate ? var.assign_public_ip : null
+  }
+
+  dynamic "capacity_provider_strategy" {
+    for_each = var.capacity_provider_strategy
+
+    content {
+      capacity_provider = capacity_provider_strategy.value.capacity_provider
+      weight            = capacity_provider_strategy.value.weight
+      base              = capacity_provider_strategy.value.base
+    }
   }
 
   dynamic "load_balancer" {
@@ -165,6 +228,7 @@ resource "aws_ecs_service" "this" {
   depends_on = [
     aws_iam_role_policy.execution,
     aws_iam_role_policy.task_storage,
+    aws_iam_role_policy.task_efs,
     aws_cloudwatch_log_group.this,
     aws_vpc_security_group_ingress_rule.container_port,
     aws_vpc_security_group_egress_rule.https_cidr,

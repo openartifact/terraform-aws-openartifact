@@ -848,3 +848,291 @@ run "shutdown_budget_over_stop_timeout_rejected" {
 
   expect_failures = [var.shutdown_timeout_seconds]
 }
+
+# ---------------------------------------------------------------------------
+# Fargate stays exactly as before
+# ---------------------------------------------------------------------------
+
+run "fargate_is_the_default_compute" {
+  command = plan
+
+  module {
+    source = "./modules/ecs-service"
+  }
+
+  assert {
+    condition     = aws_ecs_service.this.launch_type == "FARGATE" && aws_ecs_service.this.platform_version == "LATEST" && length(aws_ecs_service.this.capacity_provider_strategy) == 0
+    error_message = "Without a capacity provider strategy the service must run on Fargate (launch type FARGATE, platform LATEST), with no strategy."
+  }
+
+  assert {
+    condition     = aws_ecs_task_definition.this.requires_compatibilities == toset(["FARGATE"]) && aws_ecs_task_definition.this.network_mode == "awsvpc"
+    error_message = "The task definition must be Fargate-only with awsvpc networking."
+  }
+
+  assert {
+    condition     = length(aws_ecs_task_definition.this.ephemeral_storage) == 1 && aws_ecs_task_definition.this.ephemeral_storage[0].size_in_gib == 21
+    error_message = "Fargate tasks must configure ephemeral storage (21 GiB by default)."
+  }
+
+  assert {
+    condition     = length(aws_ecs_task_definition.this.volume) == 1 && [for v in aws_ecs_task_definition.this.volume : v.name][0] == "tmp" && length([for v in aws_ecs_task_definition.this.volume : v.docker_volume_configuration if v.name == "tmp"][0]) == 0
+    error_message = "Fargate tasks must have exactly the tmp volume, without a Docker volume configuration (Fargate rejects it)."
+  }
+
+  assert {
+    condition     = aws_ecs_service.this.network_configuration[0].assign_public_ip == false
+    error_message = "assign_public_ip must stay false by default."
+  }
+
+  assert {
+    condition     = length(aws_iam_role_policy.task_efs) == 0
+    error_message = "Without EFS volumes the task role must get no EFS policy."
+  }
+
+  assert {
+    condition     = length(jsondecode(output.container_definitions)[0].mountPoints) == 1
+    error_message = "Without EFS volumes /tmp must be the only mount point."
+  }
+}
+
+# ---------------------------------------------------------------------------
+# EC2 capacity providers
+# ---------------------------------------------------------------------------
+
+run "capacity_providers_replace_the_launch_type" {
+  command = plan
+
+  module {
+    source = "./modules/ecs-service"
+  }
+
+  variables {
+    capacity_provider_strategy = [
+      { capacity_provider = "oa-ondemand", weight = 30, base = 1 },
+      { capacity_provider = "oa-spot", weight = 70 },
+    ]
+  }
+
+  assert {
+    condition     = toset([for s in aws_ecs_service.this.capacity_provider_strategy : "${s.capacity_provider}:${s.weight}:${s.base}"]) == toset(["oa-ondemand:30:1", "oa-spot:70:0"])
+    error_message = "The strategy must carry the providers with their weight and base (base defaults to 0)."
+  }
+
+  assert {
+    condition     = aws_ecs_task_definition.this.requires_compatibilities == toset(["EC2"]) && aws_ecs_task_definition.this.network_mode == "awsvpc"
+    error_message = "The task definition must require EC2 and keep awsvpc networking."
+  }
+
+  assert {
+    condition     = length(aws_ecs_task_definition.this.ephemeral_storage) == 0
+    error_message = "Ephemeral storage is Fargate-only and must not be set for EC2 tasks."
+  }
+
+  assert {
+    condition     = jsondecode(output.container_definitions)[0].readonlyRootFilesystem == true && jsondecode(output.container_definitions)[0].user == "10001:10001"
+    error_message = "EC2 tasks must keep the read-only root filesystem and the non-root user."
+  }
+
+  # launch_type, platform_version and assign_public_ip are computed when unset, so a mocked plan
+  # cannot show that they are null; the AWS provider rejects launch_type together with a strategy.
+}
+
+run "ec2_scratch_space_is_a_task_scoped_docker_volume" {
+  command = plan
+
+  module {
+    source = "./modules/ecs-service"
+  }
+
+  variables {
+    capacity_provider_strategy = [{ capacity_provider = "oa-ondemand" }]
+  }
+
+  assert {
+    condition = (
+      length([for v in aws_ecs_task_definition.this.volume : v if v.name == "tmp"]) == 1
+      && [for v in aws_ecs_task_definition.this.volume : v.docker_volume_configuration[0].scope if v.name == "tmp"][0] == "task"
+      && [for v in aws_ecs_task_definition.this.volume : v.docker_volume_configuration[0].driver if v.name == "tmp"][0] == "local"
+    )
+    error_message = "/tmp on EC2 must be a task-scoped local Docker volume (removed when the task stops)."
+  }
+
+  assert {
+    condition     = jsondecode(output.container_definitions)[0].mountPoints == [{ sourceVolume = "tmp", containerPath = "/tmp", readOnly = false }]
+    error_message = "/tmp must still be the only writable mount."
+  }
+}
+
+run "capacity_provider_strategy_rejects_two_bases" {
+  command = plan
+
+  module {
+    source = "./modules/ecs-service"
+  }
+
+  variables {
+    capacity_provider_strategy = [
+      { capacity_provider = "a", base = 1 },
+      { capacity_provider = "b", base = 2 },
+    ]
+  }
+
+  expect_failures = [var.capacity_provider_strategy]
+}
+
+run "capacity_provider_strategy_needs_a_positive_weight" {
+  command = plan
+
+  module {
+    source = "./modules/ecs-service"
+  }
+
+  variables {
+    capacity_provider_strategy = [{ capacity_provider = "a", weight = 0 }]
+  }
+
+  expect_failures = [var.capacity_provider_strategy]
+}
+
+run "public_ip_is_rejected_on_ec2" {
+  command = plan
+
+  module {
+    source = "./modules/ecs-service"
+  }
+
+  variables {
+    assign_public_ip           = true
+    capacity_provider_strategy = [{ capacity_provider = "oa-ondemand" }]
+  }
+
+  expect_failures = [var.assign_public_ip]
+}
+
+# ---------------------------------------------------------------------------
+# EFS volumes
+# ---------------------------------------------------------------------------
+
+run "efs_volumes_are_encrypted_authorized_and_mounted" {
+  command = plan
+
+  module {
+    source = "./modules/ecs-service"
+  }
+
+  variables {
+    efs_volumes = [
+      {
+        name             = "scanner-cache"
+        container_path   = "/var/cache/openartifact/scanners"
+        file_system_id   = "fs-0123456789abcdef0"
+        file_system_arn  = "arn:aws:elasticfilesystem:eu-west-1:123456789012:file-system/fs-0123456789abcdef0"
+        access_point_id  = "fsap-0aaaaaaaaaaaaaaa1"
+        access_point_arn = "arn:aws:elasticfilesystem:eu-west-1:123456789012:access-point/fsap-0aaaaaaaaaaaaaaa1"
+      },
+      {
+        name             = "backups"
+        container_path   = "/var/lib/openartifact/backups"
+        file_system_id   = "fs-0123456789abcdef0"
+        file_system_arn  = "arn:aws:elasticfilesystem:eu-west-1:123456789012:file-system/fs-0123456789abcdef0"
+        access_point_id  = "fsap-0bbbbbbbbbbbbbbb2"
+        access_point_arn = "arn:aws:elasticfilesystem:eu-west-1:123456789012:access-point/fsap-0bbbbbbbbbbbbbbb2"
+      },
+    ]
+  }
+
+  assert {
+    condition = alltrue([
+      for v in aws_ecs_task_definition.this.volume : (
+        v.efs_volume_configuration[0].transit_encryption == "ENABLED"
+        && v.efs_volume_configuration[0].authorization_config[0].iam == "ENABLED"
+        && v.efs_volume_configuration[0].file_system_id == "fs-0123456789abcdef0"
+      ) if v.name != "tmp"
+    ])
+    error_message = "Every EFS volume must use TLS (transit_encryption ENABLED) and IAM authorization."
+  }
+
+  assert {
+    condition     = { for v in aws_ecs_task_definition.this.volume : v.name => v.efs_volume_configuration[0].authorization_config[0].access_point_id if v.name != "tmp" } == { scanner-cache = "fsap-0aaaaaaaaaaaaaaa1", backups = "fsap-0bbbbbbbbbbbbbbb2" }
+    error_message = "Every EFS volume must be mounted through its own access point."
+  }
+
+  assert {
+    condition     = alltrue([for v in aws_ecs_task_definition.this.volume : v.efs_volume_configuration[0].root_directory == null if v.name != "tmp"])
+    error_message = "With an access point the volume must not set a root directory (the access point owns it)."
+  }
+
+  assert {
+    condition = (
+      { for m in jsondecode(output.container_definitions)[0].mountPoints : m.sourceVolume => m.containerPath }
+      == { tmp = "/tmp", scanner-cache = "/var/cache/openartifact/scanners", backups = "/var/lib/openartifact/backups" }
+    )
+    error_message = "The volumes must be mounted at their container paths next to /tmp."
+  }
+
+  assert {
+    condition     = jsondecode(output.container_definitions)[0].readonlyRootFilesystem == true
+    error_message = "The root filesystem must stay read-only with EFS volumes."
+  }
+
+  assert {
+    condition = (
+      length(jsondecode(aws_iam_role_policy.task_efs[0].policy).Statement) == 2
+      && alltrue([
+        for s in jsondecode(aws_iam_role_policy.task_efs[0].policy).Statement : (
+          s.Effect == "Allow"
+          && toset(s.Action) == toset(["elasticfilesystem:ClientMount", "elasticfilesystem:ClientWrite"])
+          && s.Resource == "arn:aws:elasticfilesystem:eu-west-1:123456789012:file-system/fs-0123456789abcdef0"
+        )
+      ])
+      && toset([for s in jsondecode(aws_iam_role_policy.task_efs[0].policy).Statement : s.Condition.StringEquals["elasticfilesystem:AccessPointArn"]]) == toset([
+        "arn:aws:elasticfilesystem:eu-west-1:123456789012:access-point/fsap-0aaaaaaaaaaaaaaa1",
+        "arn:aws:elasticfilesystem:eu-west-1:123456789012:access-point/fsap-0bbbbbbbbbbbbbbb2",
+      ])
+    )
+    error_message = "The task role must get ClientMount and ClientWrite on the file system only, restricted to each access point, and nothing else (no ClientRootAccess, no wildcard)."
+  }
+}
+
+run "efs_volume_cannot_shadow_tmp" {
+  command = plan
+
+  module {
+    source = "./modules/ecs-service"
+  }
+
+  variables {
+    efs_volumes = [{
+      name             = "tmp"
+      container_path   = "/data"
+      file_system_id   = "fs-0123456789abcdef0"
+      file_system_arn  = "arn:aws:elasticfilesystem:eu-west-1:123456789012:file-system/fs-0123456789abcdef0"
+      access_point_id  = "fsap-0aaaaaaaaaaaaaaa1"
+      access_point_arn = "arn:aws:elasticfilesystem:eu-west-1:123456789012:access-point/fsap-0aaaaaaaaaaaaaaa1"
+    }]
+  }
+
+  expect_failures = [var.efs_volumes]
+}
+
+run "efs_volume_cannot_mount_over_tmp" {
+  command = plan
+
+  module {
+    source = "./modules/ecs-service"
+  }
+
+  variables {
+    efs_volumes = [{
+      name             = "data"
+      container_path   = "/tmp"
+      file_system_id   = "fs-0123456789abcdef0"
+      file_system_arn  = "arn:aws:elasticfilesystem:eu-west-1:123456789012:file-system/fs-0123456789abcdef0"
+      access_point_id  = "fsap-0aaaaaaaaaaaaaaa1"
+      access_point_arn = "arn:aws:elasticfilesystem:eu-west-1:123456789012:access-point/fsap-0aaaaaaaaaaaaaaa1"
+    }]
+  }
+
+  expect_failures = [var.efs_volumes]
+}

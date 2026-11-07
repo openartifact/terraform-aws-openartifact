@@ -43,10 +43,15 @@ variable "subnet_ids" {
 }
 
 variable "assign_public_ip" {
-  description = "Whether the tasks get a public IPv4 address. Keep false and place the tasks in private subnets; only enable it for tasks in public subnets without a NAT gateway."
+  description = "Whether the tasks get a public IPv4 address. Keep false and place the tasks in private subnets; only enable it for Fargate tasks in public subnets without a NAT gateway. Must be false with capacity_provider_strategy: tasks on EC2 instances cannot get a public address."
   type        = bool
   default     = false
-  nullable    = false
+
+  validation {
+    condition     = !var.assign_public_ip || length(var.capacity_provider_strategy) == 0
+    error_message = "assign_public_ip must be false when capacity_provider_strategy is set: tasks on EC2 container instances cannot get a public IP address."
+  }
+  nullable = false
 }
 
 variable "image" {
@@ -73,7 +78,7 @@ variable "role" {
 }
 
 variable "cpu_architecture" {
-  description = "CPU architecture of the Fargate tasks: ARM64 (cheaper, the default) or X86_64. The OpenArtifact image is published for both."
+  description = "CPU architecture of the tasks: ARM64 (cheaper, the default) or X86_64. The OpenArtifact image is published for both. With capacity_provider_strategy the container instances must have the same architecture."
   type        = string
   default     = "ARM64"
 
@@ -117,13 +122,69 @@ variable "memory" {
 }
 
 variable "ephemeral_storage_gib" {
-  description = "Size of the task ephemeral storage in GiB (21-200; Fargate includes 20 GiB). The volume holds the writable /tmp where OpenArtifact spools uploads and downloads before they are sent to S3, so size it for the largest blob you expect to proxy or upload."
+  description = "Size of the task ephemeral storage in GiB (21-200; Fargate includes 20 GiB); ignored with capacity_provider_strategy, where /tmp is a Docker volume on the container instance disk. The volume holds the writable /tmp where OpenArtifact spools uploads and downloads before they are sent to S3, so size it for the largest blob you expect to proxy or upload."
   type        = number
   default     = 21
 
   validation {
     condition     = var.ephemeral_storage_gib >= 21 && var.ephemeral_storage_gib <= 200 && floor(var.ephemeral_storage_gib) == var.ephemeral_storage_gib
     error_message = "ephemeral_storage_gib must be a whole number between 21 and 200."
+  }
+  nullable = false
+}
+
+variable "capacity_provider_strategy" {
+  description = "ECS capacity providers the service places its tasks with (EC2 container instances, for example from modules/ecs-ec2-capacity or the root module). Empty (the default) runs the tasks on Fargate. With a strategy the task definition is EC2-only: the same CPU/memory combinations apply, ephemeral_storage_gib is ignored, /tmp becomes a task-scoped Docker volume on the instance disk, and the network mode stays awsvpc. weight is the relative share of tasks (0 sends none beyond base), base the number of tasks that always run on the provider; only one provider may set a base."
+  type = list(object({
+    capacity_provider = string
+    weight            = optional(number, 1)
+    base              = optional(number, 0)
+  }))
+  default = []
+
+  validation {
+    condition     = alltrue([for s in var.capacity_provider_strategy : s.weight >= 0 && s.weight <= 1000 && floor(s.weight) == s.weight && s.base >= 0 && s.base <= 100000 && floor(s.base) == s.base])
+    error_message = "Every capacity_provider_strategy weight must be a whole number between 0 and 1000 and every base a whole number between 0 and 100000."
+  }
+
+  validation {
+    condition     = length([for s in var.capacity_provider_strategy : s if s.base > 0]) <= 1
+    error_message = "Only one capacity_provider_strategy entry may set a base."
+  }
+
+  validation {
+    # sum([]) is an error and || does not short-circuit before Terraform 1.12, hence the 0 element.
+    condition     = length(var.capacity_provider_strategy) == 0 || sum(concat([0], [for s in var.capacity_provider_strategy : s.weight])) > 0 || length([for s in var.capacity_provider_strategy : s if s.base > 0]) > 0
+    error_message = "capacity_provider_strategy needs at least one entry with a weight above 0 (or a base)."
+  }
+  nullable = false
+}
+
+variable "efs_volumes" {
+  description = "EFS access points to mount into the container, one entry per volume (for example the outputs of modules/efs). Each volume is mounted writable at container_path, encrypted in transit and authorized with the task role, which is granted elasticfilesystem:ClientMount and ClientWrite on file_system_arn restricted to access_point_arn. Only the list length and the names must be known at plan time. Security groups, mount targets and the access point itself are the caller's concern."
+  type = list(object({
+    name             = string
+    container_path   = string
+    file_system_id   = string
+    file_system_arn  = string
+    access_point_id  = string
+    access_point_arn = string
+  }))
+  default = []
+
+  validation {
+    condition     = alltrue([for v in var.efs_volumes : can(regex("^[a-z][a-z0-9-]{0,254}$", v.name)) && v.name != "tmp"])
+    error_message = "Every efs_volumes name must be lowercase letters, digits and hyphens, start with a letter and not be tmp (reserved for the scratch volume)."
+  }
+
+  validation {
+    condition     = length(distinct([for v in var.efs_volumes : v.name])) == length(var.efs_volumes) && length(distinct([for v in var.efs_volumes : v.container_path])) == length(var.efs_volumes)
+    error_message = "efs_volumes names and container_path values must be unique."
+  }
+
+  validation {
+    condition     = alltrue([for v in var.efs_volumes : startswith(v.container_path, "/") && v.container_path != "/" && v.container_path != "/tmp"])
+    error_message = "Every efs_volumes container_path must be an absolute path other than / and /tmp."
   }
   nullable = false
 }

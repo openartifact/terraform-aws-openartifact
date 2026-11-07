@@ -74,8 +74,8 @@ resource "aws_iam_role_policy" "execution" {
   })
 }
 
-# Task role: assumed by the OpenArtifact process. Only the caller-supplied policy (S3/KMS access) and,
-# when ECS Exec is on, the SSM channel actions.
+# Task role: assumed by the OpenArtifact process. Only the caller-supplied policy (S3/KMS access),
+# the EFS mount actions when efs_volumes is set and, when ECS Exec is on, the SSM channel actions.
 resource "aws_iam_role" "task" {
   name_prefix        = "${var.name}-task-"
   description        = "OpenArtifact ${var.name} ECS task role"
@@ -88,6 +88,29 @@ resource "aws_iam_role_policy" "task_storage" {
   name   = "storage"
   role   = aws_iam_role.task.id
   policy = var.task_role_policy_json
+}
+
+# Mount access to the EFS volumes, only through the volumes' access points. ClientMount lets the
+# ECS agent mount the file system with IAM authorization; ClientWrite allows writes through it.
+resource "aws_iam_role_policy" "task_efs" {
+  count = length(var.efs_volumes) > 0 ? 1 : 0
+
+  name = "efs"
+  role = aws_iam_role.task.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      for index, volume in var.efs_volumes : {
+        Sid      = "EfsMount${index}"
+        Effect   = "Allow"
+        Action   = ["elasticfilesystem:ClientMount", "elasticfilesystem:ClientWrite"]
+        Resource = volume.file_system_arn
+        Condition = {
+          StringEquals = { "elasticfilesystem:AccessPointArn" = volume.access_point_arn }
+        }
+      }
+    ]
+  })
 }
 
 # The ssmmessages actions do not support resource-level permissions.

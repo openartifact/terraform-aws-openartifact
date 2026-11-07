@@ -126,3 +126,43 @@ output "execution_role_arns" {
     worker = one(module.worker[*].execution_role_arn)
   }
 }
+
+output "capacity_type" {
+  description = "Where the ECS tasks run: FARGATE or EC2."
+  value       = var.capacity_type
+}
+
+output "ecs_capacity_provider_names" {
+  description = "Names of the ECS capacity providers (on_demand, spot) when capacity_type is EC2, otherwise null. spot is null unless ec2_capacity.spot_percentage.web is above 0."
+  value       = one(module.ec2_capacity[*].capacity_provider_names)
+}
+
+output "ecs_autoscaling_group_names" {
+  description = "Names of the Auto Scaling groups of the container instances (on_demand, spot) when capacity_type is EC2, otherwise null."
+  value       = one(module.ec2_capacity[*].autoscaling_group_names)
+}
+
+output "ecs_instance_role_arn" {
+  description = "ARN of the container instance role when capacity_type is EC2, otherwise null. It carries only the AWS managed ECS agent and SSM policies; tasks do not use it."
+  value       = one(module.ec2_capacity[*].instance_role_arn)
+}
+
+output "ecs_instance_security_group_id" {
+  description = "ID of the container instance security group when capacity_type is EC2, otherwise null."
+  value       = one(module.ec2_capacity[*].security_group_id)
+}
+
+output "efs_file_system_id" {
+  description = "ID of the EFS file system, or null unless persistent_volume.enabled."
+  value       = one(module.efs[*].file_system_id)
+}
+
+output "efs_access_point_arns" {
+  description = "ARNs of the EFS access points by use (scanner_cache, backups), or null unless persistent_volume.enabled."
+  value       = one([for efs in module.efs : { for key, ap in efs.access_points : key => ap.arn }])
+}
+
+output "efs_security_group_id" {
+  description = "ID of the EFS mount target security group, or null unless persistent_volume.enabled."
+  value       = one(module.efs[*].security_group_id)
+}

@@ -24,6 +24,68 @@ locals {
   # With a separate worker the web service only serves HTTP; otherwise one service does both.
   web_role = var.worker_enabled ? "web" : "all"
 
+  ec2 = var.capacity_type == "EC2"
+
+  # Capacity provider strategies (empty: Fargate). The web service sends spot_percentage.web percent
+  # of its tasks beyond the first to the Spot provider; the worker always runs On-Demand.
+  spot_web_percentage = local.ec2 ? var.ec2_capacity.spot_percentage.web : 0
+  capacity_providers  = local.ec2 ? module.ec2_capacity[0].capacity_provider_names : null
+  web_capacity_provider_strategy = !local.ec2 ? [] : (
+    local.spot_web_percentage == 0
+    ? [{ capacity_provider = local.capacity_providers.on_demand, weight = 1, base = 0 }]
+    : [
+      { capacity_provider = local.capacity_providers.on_demand, weight = 100 - local.spot_web_percentage, base = 1 },
+      { capacity_provider = local.capacity_providers.spot, weight = local.spot_web_percentage, base = 0 },
+    ]
+  )
+  worker_capacity_provider_strategy = !local.ec2 ? [] : [
+    { capacity_provider = local.capacity_providers.on_demand, weight = 1, base = 0 }
+  ]
+
+  # Persistent EFS volume: one access point and one container path per enabled use. The scanner
+  # cache needs exec (auto-installed binaries run from <path>/bin), which EFS mounts allow.
+  persistent_uses = var.persistent_volume.enabled ? merge(
+    var.persistent_volume.scanner_cache ? {
+      scanner-cache = { access_point = "scanner_cache", path = "/scanner-cache", container_path = "/var/cache/openartifact/scanners" }
+    } : {},
+    var.persistent_volume.backups ? {
+      backups = { access_point = "backups", path = "/backups", container_path = "/var/lib/openartifact/backups" }
+    } : {},
+  ) : {}
+
+  efs_volumes = [
+    for name, use in local.persistent_uses : {
+      name             = name
+      container_path   = use.container_path
+      file_system_id   = module.efs[0].file_system_id
+      file_system_arn  = module.efs[0].file_system_arn
+      access_point_id  = module.efs[0].access_points[use.access_point].id
+      access_point_arn = module.efs[0].access_points[use.access_point].arn
+    }
+  ]
+
+  # Set only when the directory is mounted; user-supplied extra_environment still wins.
+  persistent_environment = merge(
+    contains(keys(local.persistent_uses), "scanner-cache") ? { OPENARTIFACT_SCANNER_CACHE_DIR = local.persistent_uses["scanner-cache"].container_path } : {},
+    contains(keys(local.persistent_uses), "scanner-cache") && var.persistent_volume.scanner_auto_install ? {
+      OPENARTIFACT_TRIVY_INSTALL = "auto"
+      OPENARTIFACT_GRYPE_INSTALL = "auto"
+    } : {},
+    contains(keys(local.persistent_uses), "backups") ? { OPENARTIFACT_BACKUP_DIR = local.persistent_uses["backups"].container_path } : {},
+  )
+
+  # The EFS mount targets accept the task security groups and, on EC2, the container instances:
+  # there the ECS agent mounts the file system on the instance.
+  #
+  # Index the module instances (never splat the whole module call, which depends on every resource
+  # of the module): the services depend on the file system, so a reference to all of module.worker
+  # would be a dependency cycle.
+  efs_allowed_security_group_ids = concat(
+    [module.web.security_group_id],
+    var.worker_enabled ? [module.worker[0].security_group_id] : [],
+    local.ec2 ? [module.ec2_capacity[0].security_group_id] : [],
+  )
+
   alb_subnet_ids = var.internal ? var.private_subnet_ids : var.public_subnet_ids
 
   deregistration_delay = coalesce(var.alb_deregistration_delay_seconds, var.shutdown_delay_seconds + var.shutdown_timeout_seconds)
@@ -55,6 +117,7 @@ locals {
     },
     var.base_url != null ? { BASE_URL = var.base_url } : {},
     length(local.trusted_proxy_cidrs) > 0 ? { OPENARTIFACT_TRUSTED_PROXIES = join(",", local.trusted_proxy_cidrs) } : {},
+    local.persistent_environment,
     var.extra_environment,
   )
 

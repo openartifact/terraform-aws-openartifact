@@ -11,7 +11,7 @@ Terraform/OpenTofu modules deploying OpenArtifact on AWS (published as `openarti
 ## Layout
 
 - `/` root module: ECS Fargate deployment (ALB, web and optional worker, RDS, S3, Secrets Manager, KMS).
-- `modules/{network,storage,secrets,database,ecs-service,eks}`: reusable building blocks.
+- `modules/{network,storage,secrets,database,ecs-service,ecs-ec2-capacity,efs,eks}`: reusable building blocks.
 - `examples/*`: complete configurations; use `source = "../.."` with a comment showing the registry source.
 - `tests/<module>.tftest.hcl`: native plan-only tests, one file per module plus the root.
 - `.agents/skills/`: vendored upstream skills (read-only).
