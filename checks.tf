@@ -38,3 +38,21 @@ check "worker_autoscaling_needs_worker" {
     error_message = "worker_autoscaling.enabled has no effect while worker_enabled is false."
   }
 }
+
+check "ec2_instance_types_match_cpu_architecture" {
+  assert {
+    # Graviton families end their generation digit(s) with g (m7g, c6gd, t4g, m8g, r7gn) plus a1.
+    condition = !local.ec2 || var.ec2_capacity.instance_types == null || alltrue([
+      for t in coalesce(var.ec2_capacity.instance_types, []) :
+      can(regex("^([a-z]+[0-9]+(g|gd|gn|gen)|a1)\\.", t)) == (var.cpu_architecture == "ARM64")
+    ])
+    error_message = "ec2_capacity.instance_types contains an instance type of the wrong CPU architecture for cpu_architecture: tasks and AMI are ${var.cpu_architecture}, and ECS cannot place them on the other architecture (Graviton families end in g, such as m7g)."
+  }
+}
+
+check "ephemeral_storage_is_fargate_only" {
+  assert {
+    condition     = !local.ec2 || var.ephemeral_storage_gib == 50 # the default of ephemeral_storage_gib
+    error_message = "ephemeral_storage_gib has no effect with capacity_type EC2: /tmp lives on the instance disk, sized by ec2_capacity.root_volume_size_gib."
+  }
+}

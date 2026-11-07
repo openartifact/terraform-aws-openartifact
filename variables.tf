@@ -356,8 +356,103 @@ variable "secrets_recovery_window_in_days" {
 # Compute
 # ---------------------------------------------------------------------------
 
+variable "capacity_type" {
+  description = "Where the ECS tasks run: FARGATE (the default: serverless, nothing to patch) or EC2 (container instances in Auto Scaling groups behind ECS capacity providers, see ec2_capacity: cheaper at steady load, local disk for /tmp, your AMI and patching responsibility). Switching replaces the services' task definitions and moves the tasks. With EC2, assign_public_ip must be false and name must not start with aws, ecs or fargate."
+  type        = string
+  default     = "FARGATE"
+
+  validation {
+    condition     = contains(["FARGATE", "EC2"], var.capacity_type)
+    error_message = "capacity_type must be FARGATE or EC2."
+  }
+
+  validation {
+    condition     = var.capacity_type != "EC2" || !var.assign_public_ip
+    error_message = "assign_public_ip must be false with capacity_type EC2: tasks on EC2 container instances cannot get a public IP address."
+  }
+
+  validation {
+    condition     = var.capacity_type != "EC2" || !can(regex("^(aws|ecs|fargate)", var.name))
+    error_message = "name must not start with aws, ecs or fargate with capacity_type EC2: ECS reserves these prefixes for capacity provider names."
+  }
+  nullable = false
+}
+
+variable "ec2_capacity" {
+  description = <<-EOT
+    EC2 capacity used when capacity_type is EC2 (ignored with FARGATE). One On-Demand Auto Scaling group, plus a Spot one when spot_percentage.web is above 0, each behind an ECS capacity provider with managed scaling, managed termination protection and managed draining.
+    - instance_types: instance types in order of preference, all of the architecture cpu_architecture. Null: m7g.large and m6g.large (ARM64) or m7i.large and m6i.large (X86_64). In awsvpc mode every task needs a network interface; a large instance has three (one is the instance itself), so it fits two tasks unless ENI trunking is enabled for the account.
+    - ami_id: AMI to use instead of the recommended ECS-optimized Amazon Linux 2023 image from the public SSM parameter (resolved at plan time: a new release replaces the instances on the next apply).
+    - min_size, max_size: bounds of every Auto Scaling group; managed scaling moves between them.
+    - root_volume_size_gib: encrypted gp3 volume with the OS, the images and the /tmp scratch of every task on the instance.
+    - kms_key_arn: customer-managed key for the volumes (null: aws/ebs); its policy must allow the Auto Scaling service-linked role.
+    - target_capacity: percent utilization managed scaling aims for (100 packs tightly; lower keeps headroom).
+    - spot_percentage.web: share in percent of the web tasks (beyond the first, which always runs On-Demand) placed on Spot instances. spot_percentage.worker must stay 0: an interruption would abort running scans and backups.
+  EOT
+  type = object({
+    instance_types       = optional(list(string))
+    ami_id               = optional(string)
+    min_size             = optional(number, 1)
+    max_size             = optional(number, 4)
+    root_volume_size_gib = optional(number, 100)
+    kms_key_arn          = optional(string)
+    target_capacity      = optional(number, 100)
+    spot_percentage = optional(object({
+      web    = optional(number, 0)
+      worker = optional(number, 0)
+    }), {})
+  })
+  default = {}
+
+  validation {
+    condition     = var.ec2_capacity.instance_types == null || (length(coalesce(var.ec2_capacity.instance_types, [])) >= 1 && length(coalesce(var.ec2_capacity.instance_types, [])) <= 20)
+    error_message = "ec2_capacity.instance_types must be null or contain between 1 and 20 instance types."
+  }
+
+  validation {
+    condition     = var.ec2_capacity.instance_types == null || alltrue([for t in coalesce(var.ec2_capacity.instance_types, []) : can(regex("^[a-z0-9-]+\\.[a-z0-9]+$", t))])
+    error_message = "Every ec2_capacity.instance_types entry must look like m7g.large."
+  }
+
+  validation {
+    condition     = var.ec2_capacity.ami_id == null || can(regex("^ami-[0-9a-f]+$", coalesce(var.ec2_capacity.ami_id, "x")))
+    error_message = "ec2_capacity.ami_id must be null or look like ami-0123456789abcdef0."
+  }
+
+  validation {
+    condition     = var.ec2_capacity.min_size >= 0 && floor(var.ec2_capacity.min_size) == var.ec2_capacity.min_size && var.ec2_capacity.max_size >= 1 && floor(var.ec2_capacity.max_size) == var.ec2_capacity.max_size && var.ec2_capacity.min_size <= var.ec2_capacity.max_size
+    error_message = "ec2_capacity.min_size and ec2_capacity.max_size must be whole numbers with 0 <= min_size <= max_size and max_size >= 1."
+  }
+
+  validation {
+    condition     = var.ec2_capacity.root_volume_size_gib >= 30 && var.ec2_capacity.root_volume_size_gib <= 16384 && floor(var.ec2_capacity.root_volume_size_gib) == var.ec2_capacity.root_volume_size_gib
+    error_message = "ec2_capacity.root_volume_size_gib must be a whole number between 30 and 16384."
+  }
+
+  validation {
+    condition     = var.ec2_capacity.kms_key_arn == null || can(regex("^arn:aws[a-z-]*:kms:[a-z0-9-]+:[0-9]{12}:(key|alias)/.+$", coalesce(var.ec2_capacity.kms_key_arn, "x")))
+    error_message = "ec2_capacity.kms_key_arn must be null or a KMS key or alias ARN."
+  }
+
+  validation {
+    condition     = var.ec2_capacity.target_capacity >= 1 && var.ec2_capacity.target_capacity <= 100 && floor(var.ec2_capacity.target_capacity) == var.ec2_capacity.target_capacity
+    error_message = "ec2_capacity.target_capacity must be a whole number between 1 and 100."
+  }
+
+  validation {
+    condition     = var.ec2_capacity.spot_percentage.web >= 0 && var.ec2_capacity.spot_percentage.web <= 100 && floor(var.ec2_capacity.spot_percentage.web) == var.ec2_capacity.spot_percentage.web
+    error_message = "ec2_capacity.spot_percentage.web must be a whole number between 0 and 100."
+  }
+
+  validation {
+    condition     = var.ec2_capacity.spot_percentage.worker == 0
+    error_message = "ec2_capacity.spot_percentage.worker must be 0: the worker runs scans and backups that a Spot interruption would abort. Only the web service can use Spot."
+  }
+  nullable = false
+}
+
 variable "cpu_architecture" {
-  description = "CPU architecture of the Fargate tasks: ARM64 (about 20% cheaper, the default) or X86_64. The OpenArtifact image is published for both."
+  description = "CPU architecture of the tasks: ARM64 (about 20% cheaper, the default) or X86_64. The OpenArtifact image is published for both. With capacity_type EC2 it also selects the AMI and the default instance types."
   type        = string
   default     = "ARM64"
 
@@ -369,7 +464,7 @@ variable "cpu_architecture" {
 }
 
 variable "ephemeral_storage_gib" {
-  description = "Task ephemeral storage in GiB (21-200) for the writable /tmp, where uploads and proxied downloads are spooled before they go to S3. Size it for the largest artifact you expect."
+  description = "Task ephemeral storage in GiB (21-200) for the writable /tmp, where uploads and proxied downloads are spooled before they go to S3. Size it for the largest artifact you expect. Fargate only: with capacity_type EC2, /tmp lives on the instance disk (ec2_capacity.root_volume_size_gib)."
   type        = number
   default     = 50
 
@@ -572,7 +667,7 @@ variable "health_check_grace_period_seconds" {
 }
 
 variable "assign_public_ip" {
-  description = "Give the tasks a public IPv4 address. Keep false and run them in private subnets; enable it only when the subnets are public and there is no NAT gateway."
+  description = "Give the tasks a public IPv4 address. Keep false and run them in private subnets; enable it only when the subnets are public and there is no NAT gateway. Fargate only: must be false with capacity_type EC2."
   type        = bool
   default     = false
   nullable    = false
@@ -618,6 +713,81 @@ variable "log_kms_key_arn" {
     condition     = var.log_kms_key_arn == null || can(regex("^arn:aws[a-z-]*:kms:[a-z0-9-]+:[0-9]{12}:key/.+$", coalesce(var.log_kms_key_arn, "x")))
     error_message = "log_kms_key_arn must be a KMS key ARN."
   }
+}
+
+# ---------------------------------------------------------------------------
+# Persistent volume (EFS)
+# ---------------------------------------------------------------------------
+
+variable "persistent_volume" {
+  description = <<-EOT
+    Optional encrypted EFS file system mounted into every web and worker task, for the scanner database cache and the in-application backups, which need a writable directory that survives restarts and is shared by the tasks. Disabled by default: the tasks then keep the read-only root filesystem and /tmp as the only writable path.
+    - enabled: create the file system, one mount target per private subnet and the access points. Encrypted at rest and in transit, IAM-authorized, reachable only from the task security groups (and the container instances with capacity_type EC2), through access points as 10001:10001 with mode 0750.
+    - performance_mode, throughput_mode, provisioned_throughput_in_mibps: EFS performance settings; elastic throughput (the default) scales with the workload. A scanner database is about 5 GB with Trivy and Grype together.
+    - kms_key_arn: customer-managed key (null: aws/elasticfilesystem); its policy must allow use through EFS.
+    - backup_policy_enabled: EFS automatic backups (AWS Backup, daily, 35 days).
+    - transition_to_ia: tier files not read for this long (for example AFTER_30_DAYS) to Infrequent Access. It applies to the whole file system, scanner databases included; null keeps everything in Standard.
+    - scanner_cache: mount the scanner cache at /var/cache/openartifact/scanners and set OPENARTIFACT_SCANNER_CACHE_DIR.
+    - scanner_auto_install: also set OPENARTIFACT_TRIVY_INSTALL and OPENARTIFACT_GRYPE_INSTALL to auto, so the server downloads the pinned, checksum-verified scanner binaries into the cache (needs HTTPS egress to github.com). Requires scanner_cache.
+    - backups: mount the backup directory at /var/lib/openartifact/backups and set OPENARTIFACT_BACKUP_DIR.
+  EOT
+  type = object({
+    enabled                         = optional(bool, false)
+    performance_mode                = optional(string, "generalPurpose")
+    throughput_mode                 = optional(string, "elastic")
+    provisioned_throughput_in_mibps = optional(number)
+    kms_key_arn                     = optional(string)
+    backup_policy_enabled           = optional(bool, true)
+    transition_to_ia                = optional(string)
+    scanner_cache                   = optional(bool, true)
+    scanner_auto_install            = optional(bool, false)
+    backups                         = optional(bool, true)
+  })
+  default = {}
+
+  validation {
+    condition     = contains(["generalPurpose", "maxIO"], var.persistent_volume.performance_mode)
+    error_message = "persistent_volume.performance_mode must be generalPurpose or maxIO."
+  }
+
+  validation {
+    condition     = contains(["elastic", "bursting", "provisioned"], var.persistent_volume.throughput_mode)
+    error_message = "persistent_volume.throughput_mode must be elastic, bursting or provisioned."
+  }
+
+  validation {
+    condition     = var.persistent_volume.throughput_mode != "elastic" || var.persistent_volume.performance_mode == "generalPurpose"
+    error_message = "persistent_volume.throughput_mode elastic requires performance_mode generalPurpose."
+  }
+
+  validation {
+    condition     = (var.persistent_volume.throughput_mode == "provisioned") == (var.persistent_volume.provisioned_throughput_in_mibps != null)
+    error_message = "persistent_volume.provisioned_throughput_in_mibps must be set when throughput_mode is provisioned and null otherwise."
+  }
+
+  validation {
+    condition     = var.persistent_volume.kms_key_arn == null || can(regex("^arn:aws[a-z-]*:kms:[a-z0-9-]+:[0-9]{12}:(key|alias)/.+$", coalesce(var.persistent_volume.kms_key_arn, "x")))
+    error_message = "persistent_volume.kms_key_arn must be null or a KMS key or alias ARN."
+  }
+
+  validation {
+    condition = var.persistent_volume.transition_to_ia == null || contains([
+      "AFTER_1_DAY", "AFTER_7_DAYS", "AFTER_14_DAYS", "AFTER_30_DAYS", "AFTER_60_DAYS",
+      "AFTER_90_DAYS", "AFTER_180_DAYS", "AFTER_270_DAYS", "AFTER_365_DAYS",
+    ], coalesce(var.persistent_volume.transition_to_ia, "none"))
+    error_message = "persistent_volume.transition_to_ia must be null or one of AFTER_1_DAY, AFTER_7_DAYS, AFTER_14_DAYS, AFTER_30_DAYS, AFTER_60_DAYS, AFTER_90_DAYS, AFTER_180_DAYS, AFTER_270_DAYS, AFTER_365_DAYS."
+  }
+
+  validation {
+    condition     = !var.persistent_volume.enabled || var.persistent_volume.scanner_cache || var.persistent_volume.backups
+    error_message = "persistent_volume.enabled needs at least one use: scanner_cache or backups."
+  }
+
+  validation {
+    condition     = !var.persistent_volume.scanner_auto_install || var.persistent_volume.scanner_cache
+    error_message = "persistent_volume.scanner_auto_install installs the scanners into the cache and therefore requires scanner_cache."
+  }
+  nullable = false
 }
 
 # ---------------------------------------------------------------------------

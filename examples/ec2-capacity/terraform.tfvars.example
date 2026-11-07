@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: The OpenArtifact Authors
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+# Copy to terraform.tfvars and adjust. There is deliberately no default for the two required values.
+
+region = "eu-west-1"
+
+# ACM certificate in the same region, covering the host name of base_url.
+certificate_arn = "arn:aws:acm:eu-west-1:111122223333:certificate/00000000-0000-0000-0000-000000000000"
+
+# Who may reach the load balancer (your office, VPN or CI egress ranges).
+allowed_ingress_cidrs = ["203.0.113.0/24"]
+
+# Optional; null falls back to the ALB DNS name.
+base_url = "https://artifacts.example.com"
+
+tags = {
+  Environment = "evaluation"
+}

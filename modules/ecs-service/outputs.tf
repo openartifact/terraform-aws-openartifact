@@ -51,3 +51,8 @@ output "redeploy_state_machine_arn" {
   description = "ARN of the Step Functions state machine that force-redeploys the service on secret rotation, or null when redeploy_on_secret_rotation_arns is empty."
   value       = one(aws_sfn_state_machine.redeploy[*].arn)
 }
+
+output "capacity_provider_strategy" {
+  description = "Capacity provider strategy of the service as ECS holds it, empty on Fargate."
+  value       = aws_ecs_service.this.capacity_provider_strategy
+}

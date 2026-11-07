@@ -64,6 +64,63 @@ module "database" {
   tags                         = var.tags
 }
 
+# ECS on EC2: the container instances and their capacity providers. Created only with
+# capacity_type = "EC2"; with Fargate the cluster has no capacity providers at all.
+module "ec2_capacity" {
+  source = "./modules/ecs-ec2-capacity"
+  count  = local.ec2 ? 1 : 0
+
+  name             = var.name
+  cluster_name     = aws_ecs_cluster.this.name
+  vpc_id           = var.vpc_id
+  subnet_ids       = var.private_subnet_ids
+  cpu_architecture = var.cpu_architecture
+
+  instance_types       = var.ec2_capacity.instance_types
+  ami_id               = var.ec2_capacity.ami_id
+  min_size             = var.ec2_capacity.min_size
+  max_size             = var.ec2_capacity.max_size
+  spot_enabled         = var.ec2_capacity.spot_percentage.web > 0
+  root_volume_size_gib = var.ec2_capacity.root_volume_size_gib
+  kms_key_arn          = var.ec2_capacity.kms_key_arn
+  target_capacity      = var.ec2_capacity.target_capacity
+
+  # The agent mounts EFS volumes on the instance, so NFS leaves the instance security group.
+  egress_security_group_rules = var.persistent_volume.enabled ? [
+    {
+      security_group_id = module.efs[0].security_group_id
+      port              = 2049
+      description       = "NFS to the EFS mount targets"
+    }
+  ] : []
+
+  tags = var.tags
+}
+
+# Optional persistent volume shared by the web and worker tasks.
+module "efs" {
+  source = "./modules/efs"
+  count  = var.persistent_volume.enabled ? 1 : 0
+
+  name       = var.name
+  vpc_id     = var.vpc_id
+  subnet_ids = var.private_subnet_ids
+  # The security groups are created by modules/ecs-service and modules/ecs-ec2-capacity; their IDs
+  # are only known after apply, so the module relies on the list length (count), never on the values.
+  allowed_security_group_ids      = local.efs_allowed_security_group_ids
+  kms_key_arn                     = var.persistent_volume.kms_key_arn
+  performance_mode                = var.persistent_volume.performance_mode
+  throughput_mode                 = var.persistent_volume.throughput_mode
+  provisioned_throughput_in_mibps = var.persistent_volume.provisioned_throughput_in_mibps
+  transition_to_ia                = var.persistent_volume.transition_to_ia
+  backup_policy_enabled           = var.persistent_volume.backup_policy_enabled
+  tags                            = var.tags
+
+  access_points = {
+    for name, use in local.persistent_uses : use.access_point => { path = use.path }
+  }
+}
+
 module "web" {
   source = "./modules/ecs-service"
 
@@ -73,6 +130,8 @@ module "web" {
   vpc_id                            = var.vpc_id
   subnet_ids                        = var.private_subnet_ids
   assign_public_ip                  = var.assign_public_ip
+  capacity_provider_strategy        = local.web_capacity_provider_strategy
+  efs_volumes                       = local.efs_volumes
   image                             = local.image
   role                              = local.web_role
   cpu_architecture                  = var.cpu_architecture
@@ -121,6 +180,8 @@ module "worker" {
   vpc_id                           = var.vpc_id
   subnet_ids                       = var.private_subnet_ids
   assign_public_ip                 = var.assign_public_ip
+  capacity_provider_strategy       = local.worker_capacity_provider_strategy
+  efs_volumes                      = local.efs_volumes
   image                            = local.image
   role                             = "worker"
   cpu_architecture                 = var.cpu_architecture
