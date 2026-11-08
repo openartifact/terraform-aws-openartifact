@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: The OpenArtifact Authors
 #
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 
 variable "name" {
   description = "Name prefix for the secrets (\"<name>/secret-key\", \"<name>/hmac-key\", ...). Lowercase letters, digits and hyphens, 3-24 characters."

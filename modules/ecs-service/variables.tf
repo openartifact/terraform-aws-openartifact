@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: The OpenArtifact Authors
 #
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 
 variable "name" {
   description = "Name of the ECS service and task definition family, and the prefix of every resource created by this module (IAM roles, security group, log group). Must be 3-24 characters, lowercase letters, digits and hyphens. Must be unique per cluster; IAM roles use a name prefix so the same name may be reused in another region."

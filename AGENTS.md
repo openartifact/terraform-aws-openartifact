@@ -1,7 +1,7 @@
 <!--
 SPDX-FileCopyrightText: The OpenArtifact Authors
 
-SPDX-License-Identifier: AGPL-3.0-or-later
+SPDX-License-Identifier: MPL-2.0
 -->
 
 # AGENTS.md
@@ -27,7 +27,7 @@ make docs-check                                               # fails on README 
 
 ## Conventions
 
-- Every `.tf`, `.tftest.hcl`, `.yml`, `.sh` file starts with the SPDX header (`# SPDX-FileCopyrightText: The OpenArtifact Authors`, blank `#`, `# SPDX-License-Identifier: AGPL-3.0-or-later`); Markdown uses an HTML comment. Commits are Conventional Commits.
+- Every `.tf`, `.tftest.hcl`, `.yml`, `.sh` file starts with the SPDX header (`# SPDX-FileCopyrightText: The OpenArtifact Authors`, blank `#`, `# SPDX-License-Identifier: MPL-2.0`); Markdown uses an HTML comment. Commits are Conventional Commits.
 - `required_version = ">= 1.11"`, `aws ~> 6.72`, `random ~> 3.9`, `helm ~> 3.3` (attribute syntax: `kubernetes = {...}`, `set = [...]`), `kubernetes ~> 3.5`. A directory declares only the providers it uses. Modules never configure providers.
 - Variable attribute order: description, type, default, validation, nullable (`false`), sensitive. Every variable has `description` and `type`; every output a `description`. `var.name` matches `^[a-z][a-z0-9-]{1,22}[a-z0-9]$`.
 - Resource names are descriptive; `this` only for a module's singleton. Never mix `count` and `for_each` on one resource. Security groups only through `aws_vpc_security_group_{ingress,egress}_rule`. Tag every resource (`tags = var.tags` merged with `Name`).

@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: The OpenArtifact Authors
 #
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 
 # Tests for modules/ecs-ec2-capacity against a mocked provider (no AWS credentials, nothing is
 # created). The AMI comes from a mocked public SSM parameter.

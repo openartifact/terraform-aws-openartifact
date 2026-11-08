@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: The OpenArtifact Authors
 #
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 
 variable "name" {
   description = "Name prefix for every resource (IAM role, instance profile, security group, launch template, Auto Scaling groups and capacity providers). Must be 3-24 characters, lowercase letters, digits and hyphens, and must not start with aws, ecs or fargate: ECS reserves those prefixes for capacity provider names."

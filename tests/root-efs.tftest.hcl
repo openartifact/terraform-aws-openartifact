@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: The OpenArtifact Authors
 #
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 
 # Tests for the optional EFS persistent volume of the root module: wiring of the file system into
 # the web and worker services and the environment variables that point at it. The module itself

@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: The OpenArtifact Authors
 #
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 
 # Plan-only test of modules/eks with secret_delivery = "terraform_write_only". Kept apart from
 # tests/eks.tftest.hcl because the ephemeral "aws_secretsmanager_secret_version" is opened at

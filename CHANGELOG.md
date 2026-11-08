@@ -1,7 +1,7 @@
 <!--
 SPDX-FileCopyrightText: The OpenArtifact Authors
 
-SPDX-License-Identifier: AGPL-3.0-or-later
+SPDX-License-Identifier: MPL-2.0
 -->
 
 # Changelog
@@ -10,7 +10,13 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## [Unreleased]
 
-## [0.2.0] - Unreleased
+## [0.3.0] - 2026-11-08
+
+### Changed
+
+- The modules are now licensed under MPL-2.0 (previously AGPL-3.0-or-later). Infrastructure code that calls the modules carries no copyleft obligation; changes to the module files themselves stay under MPL-2.0. The OpenTofu Registry only renders documentation for modules under licenses on its allowlist, so the module documentation is now shown there instead of "451 Unavailable for Legal Reasons". OpenArtifact itself remains AGPL-3.0-or-later. No resource or input changes.
+
+## [0.2.0] - 2026-11-07
 
 ### Added
 
@@ -36,6 +42,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 - Automatic redeploy of ECS services after an RDS managed master password rotation.
 - Examples, native plan-only tests (Terraform and OpenTofu), tflint, Trivy, Checkov, terraform-docs and REUSE checks in CI.
 
-[Unreleased]: https://github.com/openartifact/terraform-aws-openartifact/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/openartifact/terraform-aws-openartifact/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/openartifact/terraform-aws-openartifact/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/openartifact/terraform-aws-openartifact/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/openartifact/terraform-aws-openartifact/commits/v0.1.0

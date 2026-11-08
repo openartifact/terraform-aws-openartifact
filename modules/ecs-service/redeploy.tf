@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: The OpenArtifact Authors
 #
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 
 # Restarts the tasks when a watched secret rotates (OpenArtifact reads DB_PASSWORD only at start):
 #

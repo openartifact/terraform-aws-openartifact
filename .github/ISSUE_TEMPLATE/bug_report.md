@@ -6,7 +6,7 @@ labels: bug
 <!--
 SPDX-FileCopyrightText: The OpenArtifact Authors
 
-SPDX-License-Identifier: AGPL-3.0-or-later
+SPDX-License-Identifier: MPL-2.0
 -->
 
 **Module and version** (root / `modules/<name>` / `examples/<name>`, release tag):

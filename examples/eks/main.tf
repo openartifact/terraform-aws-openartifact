@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: The OpenArtifact Authors
 #
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 
 # OpenArtifact on an existing EKS cluster: S3 + RDS + secrets in AWS, the Helm chart in the
 # cluster, EKS Pod Identity for the pods' AWS access. Prerequisites in the cluster: the EKS Pod

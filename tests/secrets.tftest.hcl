@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: The OpenArtifact Authors
 #
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 
 # Plan-only tests for modules/secrets (no AWS credentials needed). The random
 # provider is real: the ephemeral random_password resources are opened at plan

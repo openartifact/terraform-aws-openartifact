@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: The OpenArtifact Authors
 #
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 
 # The IDs are only handed out once the mount targets and the file system policy exist: an ECS
 # service that starts before the mount targets are available fails to mount the volume.

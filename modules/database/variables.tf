@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: The OpenArtifact Authors
 #
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 
 variable "name" {
   description = "Name prefix for every resource of the database (DB instance identifier, subnet group, parameter group, security group, KMS alias). Must be 3-24 characters, lowercase letters, digits and hyphens."

@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: The OpenArtifact Authors
 #
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 
 # Run with: checkov --config-file .checkov.yaml
 # Suppress a finding only inline, next to the resource, with a justification:

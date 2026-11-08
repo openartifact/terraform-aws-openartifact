@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: The OpenArtifact Authors
 #
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 
 # Trivy configuration for the misconfiguration scan: `trivy config --config trivy.yaml .`
 # Findings are suppressed only inline (`#trivy:ignore:AVD-AWS-xxxx` + justification),

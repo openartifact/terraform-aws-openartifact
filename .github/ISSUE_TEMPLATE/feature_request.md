@@ -6,7 +6,7 @@ labels: enhancement
 <!--
 SPDX-FileCopyrightText: The OpenArtifact Authors
 
-SPDX-License-Identifier: AGPL-3.0-or-later
+SPDX-License-Identifier: MPL-2.0
 -->
 
 **Problem or use case:**

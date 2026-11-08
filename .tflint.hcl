@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: The OpenArtifact Authors
 #
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 
 # Run with: tflint --init && tflint --recursive   (see `make lint`)
 # The root config applies to the root module, modules/* and examples/*.

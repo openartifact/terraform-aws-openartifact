@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: The OpenArtifact Authors
 #
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 
 resource "aws_appautoscaling_target" "this" {
   count = var.autoscaling.enabled ? 1 : 0

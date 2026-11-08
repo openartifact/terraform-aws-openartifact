@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: The OpenArtifact Authors
 #
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 
 # Pushing a vX.Y.Z tag creates the GitHub release. The Terraform Registry
 # (registry.terraform.io) and the OpenTofu Registry (search.opentofu.org) pick the tag

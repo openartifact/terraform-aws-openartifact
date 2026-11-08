@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: The OpenArtifact Authors
 #
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 
 # Tests for modules/efs. The file system policy embeds the file system ARN, which a mocked plan
 # leaves unknown, so the behaviour runs apply against the mocked provider; nothing touches AWS.

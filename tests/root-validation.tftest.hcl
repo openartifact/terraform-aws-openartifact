@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: The OpenArtifact Authors
 #
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 
 # Input validation of the root module: invalid values must be rejected at plan time, valid edge
 # cases must be accepted. Plan-only, no AWS access: the provider is mocked.

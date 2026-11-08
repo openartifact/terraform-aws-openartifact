@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: The OpenArtifact Authors
 #
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 
 # The minimal deployment on ECS container instances instead of Fargate (capacity_type = "EC2"),
 # with an EFS volume (persistent_volume) for the scanner database cache and the in-application

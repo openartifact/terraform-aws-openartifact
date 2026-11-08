@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: The OpenArtifact Authors
 #
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 
 data "aws_vpc" "this" {
   # Only needed for the default trusted proxy CIDR; the count depends on a variable, never on a

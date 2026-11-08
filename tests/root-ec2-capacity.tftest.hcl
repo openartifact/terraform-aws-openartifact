@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: The OpenArtifact Authors
 #
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 
 # Tests for ECS on EC2 capacity in the root module: the default stays Fargate, EC2 mode creates the
 # container instances and sends the services to their capacity providers. The module itself is

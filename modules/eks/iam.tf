@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: The OpenArtifact Authors
 #
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 
 # ---------------------------------------------------------------------------
 # EKS Pod Identity: the chart's service account (web and worker pods) gets an IAM role that can

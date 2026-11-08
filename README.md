@@ -1,7 +1,7 @@
 <!--
 SPDX-FileCopyrightText: The OpenArtifact Authors
 
-SPDX-License-Identifier: AGPL-3.0-or-later
+SPDX-License-Identifier: MPL-2.0
 -->
 
 # terraform-aws-openartifact
@@ -244,7 +244,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Short version: `make fmt lint validate t
 
 ## Licence
 
-AGPL-3.0-or-later, see [LICENSE](LICENSE). Vendored agent skills keep their upstream licences (see `.agents/skills/README.md`).
+MPL-2.0, see [LICENSE](LICENSE). Vendored agent skills keep their upstream licences (see `.agents/skills/README.md`).
 
 <!-- BEGIN_TF_DOCS -->
 ## Requirements

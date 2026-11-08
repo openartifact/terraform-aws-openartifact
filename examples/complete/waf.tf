@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: The OpenArtifact Authors
 #
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 
 # Regional web ACL for the ALB: AWS managed rule groups plus a per-IP rate limit. Tune it to your
 # traffic: run new rules in count mode first and read the WAF sampled requests before blocking.

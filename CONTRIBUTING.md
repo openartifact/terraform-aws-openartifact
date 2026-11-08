@@ -1,7 +1,7 @@
 <!--
 SPDX-FileCopyrightText: The OpenArtifact Authors
 
-SPDX-License-Identifier: AGPL-3.0-or-later
+SPDX-License-Identifier: MPL-2.0
 -->
 
 # Contributing
@@ -32,7 +32,7 @@ Never run `apply` (or a plan against real AWS) as part of development or in CI.
 ## Conventions
 
 - Commits and PR titles follow [Conventional Commits](https://www.conventionalcommits.org/): `feat(ecs-service): ...`, `fix(database): ...`, `docs: ...`, `ci: ...`, `chore: ...`. Mark breaking changes with `!` and describe the upgrade in `CHANGELOG.md`.
-- Every `.tf`, `.tftest.hcl`, `.yml` and `.sh` file starts with the SPDX header (`SPDX-FileCopyrightText: The OpenArtifact Authors`, `SPDX-License-Identifier: AGPL-3.0-or-later`); Markdown uses the HTML comment form. `make reuse` must pass.
+- Every `.tf`, `.tftest.hcl`, `.yml` and `.sh` file starts with the SPDX header (`SPDX-FileCopyrightText: The OpenArtifact Authors`, `SPDX-License-Identifier: MPL-2.0`); Markdown uses the HTML comment form. `make reuse` must pass.
 - Every variable has `description` and `type`, validates its input where a bad value is possible, and uses `nullable = false` unless `null` is meaningful. Every output has a `description`.
 - `versions.tf` declares `required_version = ">= 1.11"` and only the providers the directory uses. Modules never configure providers; examples do.
 - Security group rules use `aws_vpc_security_group_{ingress,egress}_rule`; never mix `count` and `for_each` on one resource.

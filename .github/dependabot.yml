@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: The OpenArtifact Authors
 #
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 
 # Actions are pinned by commit SHA (+ `# vX.Y.Z` comment). Not tracked by Dependabot: the
 # tool versions in the workflows (TFLINT_VERSION, CHECKOV_VERSION, TERRAFORM_DOCS_VERSION,

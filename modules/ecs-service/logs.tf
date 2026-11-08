@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: The OpenArtifact Authors
 #
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 
 # Without a customer-managed key (log_kms_key_arn) CloudWatch Logs still encrypts the data at rest.
 resource "aws_cloudwatch_log_group" "this" {

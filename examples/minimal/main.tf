@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: The OpenArtifact Authors
 #
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 
 # The smallest complete deployment: a new VPC with one NAT gateway, one web task, a single-AZ
 # database. Good for evaluation and non-production. Deletion protection stays ON (database, load

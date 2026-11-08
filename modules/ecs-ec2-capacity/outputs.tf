@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: The OpenArtifact Authors
 #
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 
 # Services must not be created before the providers are attached to the cluster and before the
 # instances may reach their file systems, so the capacity provider names are only handed out then.

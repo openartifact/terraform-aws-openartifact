@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: The OpenArtifact Authors
 #
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 
 output "url" {
   description = "Public URL of the repository: base_url when set, otherwise https://<ALB DNS name> (the certificate must cover that name for clients to connect without errors)."

@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: The OpenArtifact Authors
 #
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 
 # A production-shaped deployment: three Availability Zones with a NAT gateway each, separate web
 # and worker services with autoscaling, a Multi-AZ database with Performance Insights and Enhanced

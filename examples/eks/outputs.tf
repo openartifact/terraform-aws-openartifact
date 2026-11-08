@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: The OpenArtifact Authors
 #
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 
 output "url" {
   description = "URL of the repository (https://<ingress_host>). The host name must point at the ALB: kubectl get ingress -n <namespace>."
